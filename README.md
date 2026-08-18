@@ -1265,56 +1265,56 @@ More advanced functionality can be added later.
 
 ## Phase 1 --- Image Utilities
 
--   [ ] JPG → PNG
--   [ ] PNG → JPG
--   [ ] JPG → WebP
--   [ ] PNG → WebP
--   [ ] WebP → JPG
--   [ ] WebP → PNG
--   [ ] Image compression
--   [ ] Image resize
--   [ ] Image crop
--   [ ] Image rotation
--   [ ] Batch conversion
--   [ ] ZIP downloads
+-   [x] JPG → PNG
+-   [x] PNG → JPG
+-   [x] JPG → WebP
+-   [x] PNG → WebP
+-   [x] WebP → JPG
+-   [x] WebP → PNG
+-   [x] Image compression
+-   [x] Image resize
+-   [x] Image crop
+-   [x] Image rotation
+-   [x] Batch conversion
+-   [x] ZIP downloads
 
 ## Phase 2 --- Basic PDF Utilities
 
--   [ ] PDF merge
--   [ ] PDF split
--   [ ] PDF page extraction
--   [ ] Delete PDF pages
--   [ ] Reorder PDF pages
--   [ ] Rotate PDF pages
--   [ ] PDF → JPG
--   [ ] PDF → PNG
--   [ ] JPG → PDF
--   [ ] PNG → PDF
--   [ ] Image → PDF
+-   [x] PDF merge
+-   [x] PDF split
+-   [x] PDF page extraction
+-   [x] Delete PDF pages
+-   [x] Reorder PDF pages
+-   [x] Rotate PDF pages
+-   [x] PDF → JPG
+-   [x] PDF → PNG
+-   [x] JPG → PDF
+-   [x] PNG → PDF
+-   [x] Image → PDF
 
 ## Phase 3 --- Better UX
 
--   [ ] PDF page thumbnails
--   [ ] Image previews
--   [ ] Processing progress
--   [ ] Better error messages
+-   [x] PDF page thumbnails
+-   [x] Image previews
+-   [x] Processing progress
+-   [x] Better error messages
 -   [ ] Keyboard shortcuts
 -   [ ] Batch queues
--   [ ] Drag-and-drop everywhere
--   [ ] Dark/light themes
+-   [x] Drag-and-drop everywhere
+-   [x] Dark/light themes
 
 ## Phase 4 --- Offline
 
--   [ ] PWA
--   [ ] Service worker
--   [ ] Offline asset caching
--   [ ] Installable desktop experience
+-   [x] PWA
+-   [x] Service worker
+-   [x] Offline asset caching
+-   [x] Installable desktop experience
 
 ## Phase 5 --- Advanced Utilities
 
 Potential future tools:
 
--   [ ] PDF metadata editor
+-   [x] PDF metadata editor
 -   [ ] PDF password protection
 -   [ ] PDF page size tools
 -   [ ] PDF image extraction

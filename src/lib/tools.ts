@@ -16,6 +16,7 @@ import {
   Trash2,
   ArrowRightLeft,
   FileCode2,
+  Globe,
   Hash,
   ListOrdered,
   QrCode,
@@ -206,6 +207,15 @@ export const tools: ToolDef[] = [
     description: "Generate QR codes or decode them from images.",
     category: "utility",
     icon: QrCode,
+    available: true,
+  },
+  {
+    id: "favicon",
+    path: "/util/favicon",
+    name: "Favicon Generator",
+    description: "Any image → full favicon set: ICO, PNGs, apple-touch, PWA.",
+    category: "utility",
+    icon: Globe,
     available: true,
   },
   {

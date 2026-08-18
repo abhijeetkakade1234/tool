@@ -26,6 +26,7 @@ const toolRoutes: [string, LazyExoticComponent<ComponentType>][] = [
   ["/util/svg-to-png", lazy(() => import("@/features/utils/svgToPng/SvgToPngPage"))],
   ["/util/hash", lazy(() => import("@/features/utils/hash/FileHashPage"))],
   ["/util/qr", lazy(() => import("@/features/utils/qr/QrPage"))],
+  ["/util/favicon", lazy(() => import("@/features/utils/favicon/FaviconPage"))],
 ]
 
 function Loading() {

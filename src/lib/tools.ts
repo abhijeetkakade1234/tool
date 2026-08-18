@@ -12,6 +12,7 @@ import {
   RotateCw,
   Scaling,
   Scissors,
+  Smartphone,
   Trash2,
   ArrowRightLeft,
   ListOrdered,
@@ -83,6 +84,15 @@ export const tools: ToolDef[] = [
     description: "Dimensions, format, size and metadata at a glance.",
     category: "image",
     icon: Info,
+    available: true,
+  },
+  {
+    id: "image-heic",
+    path: "/image/heic",
+    name: "HEIC → JPG / PNG",
+    description: "Convert iPhone HEIC photos to formats that work everywhere.",
+    category: "image",
+    icon: Smartphone,
     available: true,
   },
   {

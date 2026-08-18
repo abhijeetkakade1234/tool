@@ -34,6 +34,16 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
+        // The HEIC page bundles a ~3MB libheif WASM build; don't force it on
+        // every visitor at install time — cache it on first use instead.
+        globIgnores: ["**/HeicConvertPage-*.js"],
+        runtimeCaching: [
+          {
+            urlPattern: /\/assets\/HeicConvertPage-.*\.js$/,
+            handler: "CacheFirst",
+            options: { cacheName: "heic-converter" },
+          },
+        ],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
       },
     }),

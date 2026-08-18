@@ -12,6 +12,7 @@ import {
   PenLine,
   RotateCw,
   Scaling,
+  ScanText,
   Scissors,
   Smartphone,
   Trash2,
@@ -107,6 +108,15 @@ export const tools: ToolDef[] = [
     description: "See camera, date and GPS metadata — export clean copies.",
     category: "image",
     icon: MapPinOff,
+    available: true,
+  },
+  {
+    id: "image-ocr",
+    path: "/image/ocr",
+    name: "OCR — Image to Text",
+    description: "Extract text from photos and scans, in your browser.",
+    category: "image",
+    icon: ScanText,
     available: true,
   },
   // PDF tools

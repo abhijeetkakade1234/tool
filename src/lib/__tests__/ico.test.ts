@@ -42,7 +42,7 @@ describe("buildIco", () => {
     const blob = buildIco([{ size: 32, png: fakePng(7, 16) }])
     const bytes = new Uint8Array(await blob.arrayBuffer())
     const payload = bytes.slice(6 + 16)
-    expect([...payload.slice(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47])
+    expect(Array.from(payload.slice(0, 4))).toEqual([0x89, 0x50, 0x4e, 0x47])
     expect(payload[15]).toBe(7)
   })
 })

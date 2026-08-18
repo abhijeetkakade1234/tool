@@ -14,6 +14,7 @@ const toolRoutes: [string, LazyExoticComponent<ComponentType>][] = [
   ["/image/info", lazy(() => import("@/features/images/info/ImageInfoPage"))],
   ["/image/exif", lazy(() => import("@/features/images/exif/ExifPage"))],
   ["/image/heic", lazy(() => import("@/features/images/heic/HeicConvertPage"))],
+  ["/image/ocr", lazy(() => import("@/features/images/ocr/OcrPage"))],
   ["/pdf/merge", lazy(() => import("@/features/pdf/merge/PdfMergePage"))],
   ["/pdf/compress", lazy(() => import("@/features/pdf/compress/PdfCompressPage"))],
   ["/pdf/split", lazy(() => import("@/features/pdf/split/PdfSplitPage"))],

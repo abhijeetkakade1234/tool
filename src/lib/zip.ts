@@ -15,7 +15,10 @@ export async function zipBlobs(entries: { filename: string; blob: Blob }[]): Pro
       n++
     }
     used.add(name)
-    zip.file(name, blob)
+    // ArrayBuffer instead of Blob: works in both browser and Node (tests).
+    zip.file(name, await blob.arrayBuffer())
   }
-  return await zip.generateAsync({ type: "blob" })
+  return new Blob([await zip.generateAsync({ type: "arraybuffer" })], {
+    type: "application/zip",
+  })
 }

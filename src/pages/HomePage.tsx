@@ -4,7 +4,7 @@ import { Search } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { imageTools, pdfTools, type ToolDef } from "@/lib/tools"
+import { imageTools, pdfTools, utilityTools, type ToolDef } from "@/lib/tools"
 
 function ToolCard({ tool }: { tool: ToolDef }) {
   const Icon = tool.icon
@@ -58,6 +58,7 @@ export function HomePage() {
     !q || t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q)
   const images = imageTools.filter(match)
   const pdfs = pdfTools.filter(match)
+  const utils = utilityTools.filter(match)
 
   return (
     <div className="space-y-8">
@@ -86,7 +87,8 @@ export function HomePage() {
       </section>
       {images.length > 0 && <ToolGrid title="Image Tools" items={images} />}
       {pdfs.length > 0 && <ToolGrid title="PDF Tools" items={pdfs} />}
-      {images.length === 0 && pdfs.length === 0 && (
+      {utils.length > 0 && <ToolGrid title="Utilities" items={utils} />}
+      {images.length === 0 && pdfs.length === 0 && utils.length === 0 && (
         <p className="py-10 text-center text-sm text-muted-foreground">
           No tools match "{query}".
         </p>

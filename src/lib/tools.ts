@@ -15,10 +15,12 @@ import {
   Smartphone,
   Trash2,
   ArrowRightLeft,
+  FileCode2,
+  Hash,
   ListOrdered,
 } from "lucide-react"
 
-export type ToolCategory = "image" | "pdf"
+export type ToolCategory = "image" | "pdf" | "utility"
 
 export interface ToolDef {
   id: string
@@ -186,7 +188,27 @@ export const tools: ToolDef[] = [
     icon: FileOutput,
     available: true,
   },
+  // Utilities
+  {
+    id: "svg-to-png",
+    path: "/util/svg-to-png",
+    name: "SVG → PNG",
+    description: "Rasterize SVG files to PNG at any width.",
+    category: "utility",
+    icon: FileCode2,
+    available: true,
+  },
+  {
+    id: "file-hash",
+    path: "/util/hash",
+    name: "File Hash",
+    description: "SHA-256, SHA-1 and SHA-512 checksums for any file.",
+    category: "utility",
+    icon: Hash,
+    available: true,
+  },
 ]
 
 export const imageTools = tools.filter((t) => t.category === "image")
 export const pdfTools = tools.filter((t) => t.category === "pdf")
+export const utilityTools = tools.filter((t) => t.category === "utility")

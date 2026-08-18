@@ -1,6 +1,7 @@
 import type { ReactNode } from "react"
 import { Link } from "react-router-dom"
 import { ArrowLeft } from "lucide-react"
+import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 
 interface ToolPageProps {
   title: string
@@ -9,6 +10,7 @@ interface ToolPageProps {
 }
 
 export function ToolPage({ title, description, children }: ToolPageProps) {
+  useDocumentTitle(title)
   return (
     <div className="space-y-6">
       <div className="space-y-1">

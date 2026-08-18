@@ -1,6 +1,9 @@
+import { useState } from "react"
 import { Link } from "react-router-dom"
+import { Search } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import { imageTools, pdfTools, type ToolDef } from "@/lib/tools"
 
 function ToolCard({ tool }: { tool: ToolDef }) {
@@ -49,9 +52,16 @@ function ToolGrid({ title, items }: { title: string; items: ToolDef[] }) {
 }
 
 export function HomePage() {
+  const [query, setQuery] = useState("")
+  const q = query.trim().toLowerCase()
+  const match = (t: ToolDef) =>
+    !q || t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q)
+  const images = imageTools.filter(match)
+  const pdfs = pdfTools.filter(match)
+
   return (
     <div className="space-y-8">
-      <section className="space-y-2 pt-2 text-center sm:pt-6">
+      <section className="space-y-4 pt-2 text-center sm:pt-6">
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
           Your files, processed in your browser
         </h1>
@@ -59,9 +69,28 @@ export function HomePage() {
           Merge, split, convert and compress PDFs and images. Everything runs locally —
           nothing is ever uploaded.
         </p>
+        <div className="relative mx-auto max-w-sm">
+          <Search
+            className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            type="search"
+            placeholder="Search tools…"
+            aria-label="Search tools"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
       </section>
-      <ToolGrid title="Image Tools" items={imageTools} />
-      <ToolGrid title="PDF Tools" items={pdfTools} />
+      {images.length > 0 && <ToolGrid title="Image Tools" items={images} />}
+      {pdfs.length > 0 && <ToolGrid title="PDF Tools" items={pdfs} />}
+      {images.length === 0 && pdfs.length === 0 && (
+        <p className="py-10 text-center text-sm text-muted-foreground">
+          No tools match "{query}".
+        </p>
+      )}
     </div>
   )
 }

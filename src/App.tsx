@@ -23,6 +23,7 @@ const toolRoutes: [string, LazyExoticComponent<ComponentType>][] = [
   ["/pdf/from-images", lazy(() => import("@/features/pdf/fromImages/ImagesToPdfPage"))],
   ["/pdf/to-images", lazy(() => import("@/features/pdf/toImages/PdfToImagesPage"))],
   ["/pdf/metadata", lazy(() => import("@/features/pdf/metadata/PdfMetadataPage"))],
+  ["/pdf/sign", lazy(() => import("@/features/pdf/sign/PdfSignPage"))],
   ["/util/svg-to-png", lazy(() => import("@/features/utils/svgToPng/SvgToPngPage"))],
   ["/util/hash", lazy(() => import("@/features/utils/hash/FileHashPage"))],
   ["/util/qr", lazy(() => import("@/features/utils/qr/QrPage"))],

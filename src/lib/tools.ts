@@ -9,6 +9,7 @@ import {
   Layers,
   MapPinOff,
   Minimize2,
+  PenLine,
   RotateCw,
   Scaling,
   Scissors,
@@ -179,6 +180,15 @@ export const tools: ToolDef[] = [
     description: "Turn JPG, PNG or WebP images into a PDF.",
     category: "pdf",
     icon: Images,
+    available: true,
+  },
+  {
+    id: "pdf-sign",
+    path: "/pdf/sign",
+    name: "Sign / Stamp PDF",
+    description: "Draw a signature and place it on any page.",
+    category: "pdf",
+    icon: PenLine,
     available: true,
   },
   {

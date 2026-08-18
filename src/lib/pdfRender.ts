@@ -19,6 +19,36 @@ export async function openPdfForRender(file: File): Promise<PDFDocumentProxy> {
   }
 }
 
+/**
+ * Render every page as a small JPEG thumbnail and return object URLs
+ * (index = page number - 1). Caller must revoke the URLs when done.
+ */
+export async function renderThumbnails(file: File, maxWidth = 96): Promise<string[]> {
+  const doc = await openPdfForRender(file)
+  const urls: string[] = []
+  try {
+    for (let p = 1; p <= doc.numPages; p++) {
+      const page = await doc.getPage(p)
+      const base = page.getViewport({ scale: 1 })
+      const viewport = page.getViewport({ scale: maxWidth / base.width })
+      const canvas = document.createElement("canvas")
+      canvas.width = Math.ceil(viewport.width)
+      canvas.height = Math.ceil(viewport.height)
+      const ctx = canvas.getContext("2d")
+      if (!ctx) throw new Error("Canvas 2D context is not available.")
+      ctx.fillStyle = "#ffffff"
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      await page.render({ canvas, canvasContext: ctx, viewport }).promise
+      const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/jpeg", 0.8))
+      page.cleanup()
+      urls.push(blob ? URL.createObjectURL(blob) : "")
+    }
+  } finally {
+    await doc.loadingTask.destroy()
+  }
+  return urls
+}
+
 export interface RenderPageOptions {
   scale: number
   type: "image/jpeg" | "image/png"

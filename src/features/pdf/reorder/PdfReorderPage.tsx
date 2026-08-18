@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { ArrowDown, ArrowUp, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -8,20 +8,41 @@ import { ResultList, type ResultEntry } from "@/components/ResultList"
 import { ToolPage } from "@/components/ToolPage"
 import { stripExtension } from "@/lib/file"
 import { getPageCount, reorderPdf } from "@/lib/pdf"
+import { renderThumbnails } from "@/lib/pdfRender"
 
 export default function PdfReorderPage() {
   const [file, setFile] = useState<File | null>(null)
   const [order, setOrder] = useState<number[]>([])
+  const [thumbs, setThumbs] = useState<string[]>([])
   const [results, setResults] = useState<ResultEntry[]>([])
   const [busy, setBusy] = useState(false)
+  const thumbsRef = useRef<string[]>([])
+
+  function releaseThumbs() {
+    for (const url of thumbsRef.current) if (url) URL.revokeObjectURL(url)
+    thumbsRef.current = []
+    setThumbs([])
+  }
+
+  useEffect(() => releaseThumbs, [])
 
   async function onFile(files: File[]) {
     const f = files[0]
     setResults([])
+    releaseThumbs()
     try {
       const count = await getPageCount(f)
       setFile(f)
       setOrder(Array.from({ length: count }, (_, i) => i + 1))
+      // Thumbnails render in the background; the list is usable immediately.
+      renderThumbnails(f)
+        .then((urls) => {
+          thumbsRef.current = urls
+          setThumbs(urls)
+        })
+        .catch(() => {
+          /* thumbnails are optional; the numbered list still works */
+        })
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not read PDF.")
     }
@@ -72,7 +93,18 @@ export default function PdfReorderPage() {
             </div>
             <ul className="divide-y rounded-lg border">
               {order.map((page, i) => (
-                <li key={`${page}-${i}`} className="flex items-center gap-1 px-3 py-1.5 text-sm">
+                <li key={`${page}-${i}`} className="flex items-center gap-3 px-3 py-1.5 text-sm">
+                  {thumbs[page - 1] ? (
+                    <img
+                      src={thumbs[page - 1]}
+                      alt={`Page ${page} preview`}
+                      className="h-14 w-11 shrink-0 rounded border object-contain"
+                    />
+                  ) : (
+                    <div className="flex h-14 w-11 shrink-0 items-center justify-center rounded border text-xs text-muted-foreground">
+                      {page}
+                    </div>
+                  )}
                   <span className="flex-1">
                     Position {i + 1}: <span className="font-medium">page {page}</span>
                   </span>

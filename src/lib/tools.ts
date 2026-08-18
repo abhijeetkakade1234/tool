@@ -72,7 +72,7 @@ export const tools: ToolDef[] = [
     description: "Crop freely or to a fixed aspect ratio.",
     category: "image",
     icon: Crop,
-    available: false,
+    available: true,
   },
   {
     id: "image-info",
@@ -81,7 +81,7 @@ export const tools: ToolDef[] = [
     description: "Dimensions, format, size and metadata at a glance.",
     category: "image",
     icon: Info,
-    available: false,
+    available: true,
   },
   // PDF tools
   {

@@ -25,6 +25,7 @@ const toolRoutes: [string, LazyExoticComponent<ComponentType>][] = [
   ["/pdf/metadata", lazy(() => import("@/features/pdf/metadata/PdfMetadataPage"))],
   ["/util/svg-to-png", lazy(() => import("@/features/utils/svgToPng/SvgToPngPage"))],
   ["/util/hash", lazy(() => import("@/features/utils/hash/FileHashPage"))],
+  ["/util/qr", lazy(() => import("@/features/utils/qr/QrPage"))],
 ]
 
 function Loading() {

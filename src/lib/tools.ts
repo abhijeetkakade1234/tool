@@ -18,6 +18,7 @@ import {
   FileCode2,
   Hash,
   ListOrdered,
+  QrCode,
 } from "lucide-react"
 
 export type ToolCategory = "image" | "pdf" | "utility"
@@ -196,6 +197,15 @@ export const tools: ToolDef[] = [
     description: "Rasterize SVG files to PNG at any width.",
     category: "utility",
     icon: FileCode2,
+    available: true,
+  },
+  {
+    id: "qr-code",
+    path: "/util/qr",
+    name: "QR Code",
+    description: "Generate QR codes or decode them from images.",
+    category: "utility",
+    icon: QrCode,
     available: true,
   },
   {

@@ -7,6 +7,7 @@ import {
   Images,
   Info,
   Layers,
+  MapPinOff,
   Minimize2,
   RotateCw,
   Scaling,
@@ -82,6 +83,15 @@ export const tools: ToolDef[] = [
     description: "Dimensions, format, size and metadata at a glance.",
     category: "image",
     icon: Info,
+    available: true,
+  },
+  {
+    id: "image-exif",
+    path: "/image/exif",
+    name: "EXIF Viewer / Remover",
+    description: "See camera, date and GPS metadata — export clean copies.",
+    category: "image",
+    icon: MapPinOff,
     available: true,
   },
   // PDF tools

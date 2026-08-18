@@ -36,7 +36,7 @@ export const tools: ToolDef[] = [
     description: "JPG, PNG and WebP in any direction. Batch supported.",
     category: "image",
     icon: ArrowRightLeft,
-    available: false,
+    available: true,
   },
   {
     id: "image-compress",
@@ -45,7 +45,7 @@ export const tools: ToolDef[] = [
     description: "Shrink file size with quality and dimension controls.",
     category: "image",
     icon: Minimize2,
-    available: false,
+    available: true,
   },
   {
     id: "image-resize",
@@ -54,7 +54,7 @@ export const tools: ToolDef[] = [
     description: "Resize by width, height or percentage.",
     category: "image",
     icon: Scaling,
-    available: false,
+    available: true,
   },
   {
     id: "image-rotate",
@@ -63,7 +63,7 @@ export const tools: ToolDef[] = [
     description: "Rotate 90°/180° or flip horizontally and vertically.",
     category: "image",
     icon: RotateCw,
-    available: false,
+    available: true,
   },
   {
     id: "image-crop",

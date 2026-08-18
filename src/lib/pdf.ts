@@ -138,6 +138,24 @@ export async function readPdfInfo(file: File): Promise<PdfInfo> {
   }
 }
 
+export interface PdfMetadataEdit {
+  title?: string
+  author?: string
+  subject?: string
+  creator?: string
+}
+
+/** Write new metadata fields into a copy of the PDF. Empty strings clear the field. */
+export async function editPdfMetadata(file: File, edit: PdfMetadataEdit): Promise<Blob> {
+  const doc = await loadPdf(file)
+  if (edit.title !== undefined) doc.setTitle(edit.title)
+  if (edit.author !== undefined) doc.setAuthor(edit.author)
+  if (edit.subject !== undefined) doc.setSubject(edit.subject)
+  if (edit.creator !== undefined) doc.setCreator(edit.creator)
+  doc.setModificationDate(new Date())
+  return await saveAsBlob(doc)
+}
+
 /** Get just the page count without keeping the document around. */
 export async function getPageCount(file: File): Promise<number> {
   const doc = await loadPdf(file)

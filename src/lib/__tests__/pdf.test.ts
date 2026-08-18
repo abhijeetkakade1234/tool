@@ -2,6 +2,7 @@ import { PDFDocument } from "pdf-lib"
 import { describe, expect, it } from "vitest"
 import {
   deletePages,
+  editPdfMetadata,
   extractPages,
   getPageCount,
   loadPdf,
@@ -123,6 +124,36 @@ describe("rotatePdfPages", () => {
     const blob = await rotatePdfPages(await makePdf(3), [2], 180)
     const doc = await PDFDocument.load(await blob.arrayBuffer())
     expect(doc.getPages().map((p) => p.getRotation().angle)).toEqual([0, 180, 0])
+  })
+})
+
+describe("editPdfMetadata", () => {
+  it("writes new fields and clears with empty strings", async () => {
+    const doc = await PDFDocument.create()
+    doc.setTitle("Old Title")
+    doc.setAuthor("Old Author")
+    doc.addPage()
+    const bytes = await doc.save()
+    const file = new File([bytes as unknown as BlobPart], "meta.pdf")
+
+    const blob = await editPdfMetadata(file, { title: "New Title", author: "" })
+    const edited = await PDFDocument.load(await blob.arrayBuffer())
+    expect(edited.getTitle()).toBe("New Title")
+    expect(edited.getAuthor() ?? "").toBe("")
+    expect(edited.getPageCount()).toBe(1)
+  })
+
+  it("leaves undefined fields untouched", async () => {
+    const doc = await PDFDocument.create()
+    doc.setSubject("Keep Me")
+    doc.addPage()
+    const bytes = await doc.save()
+    const file = new File([bytes as unknown as BlobPart], "meta.pdf")
+
+    const blob = await editPdfMetadata(file, { title: "Only Title" })
+    const edited = await PDFDocument.load(await blob.arrayBuffer())
+    expect(edited.getSubject()).toBe("Keep Me")
+    expect(edited.getTitle()).toBe("Only Title")
   })
 })
 

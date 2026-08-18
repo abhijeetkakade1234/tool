@@ -1318,8 +1318,8 @@ Potential future tools:
 -   [ ] PDF password protection
 -   [ ] PDF page size tools
 -   [ ] PDF image extraction
--   [ ] HEIC conversion
--   [ ] EXIF viewer/remover
+-   [x] HEIC conversion
+-   [x] EXIF viewer/remover
 -   [ ] SVG conversion utilities
 -   [ ] OCR where browser performance is acceptable
 

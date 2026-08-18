@@ -13,6 +13,7 @@ const toolRoutes: [string, LazyExoticComponent<ComponentType>][] = [
   ["/image/crop", lazy(() => import("@/features/images/crop/ImageCropPage"))],
   ["/image/info", lazy(() => import("@/features/images/info/ImageInfoPage"))],
   ["/pdf/merge", lazy(() => import("@/features/pdf/merge/PdfMergePage"))],
+  ["/pdf/compress", lazy(() => import("@/features/pdf/compress/PdfCompressPage"))],
   ["/pdf/split", lazy(() => import("@/features/pdf/split/PdfSplitPage"))],
   ["/pdf/delete", lazy(() => import("@/features/pdf/delete/PdfDeletePage"))],
   ["/pdf/reorder", lazy(() => import("@/features/pdf/reorder/PdfReorderPage"))],

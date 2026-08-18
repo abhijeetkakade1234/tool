@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react"
 import {
   Crop,
+  FileDown,
   FileImage,
   FileOutput,
   Images,
@@ -91,6 +92,15 @@ export const tools: ToolDef[] = [
     description: "Combine multiple PDFs into one, in the order you choose.",
     category: "pdf",
     icon: Layers,
+    available: true,
+  },
+  {
+    id: "pdf-compress",
+    path: "/pdf/compress",
+    name: "Compress PDF",
+    description: "Shrink file size by re-rendering pages. Best for scans.",
+    category: "pdf",
+    icon: FileDown,
     available: true,
   },
   {

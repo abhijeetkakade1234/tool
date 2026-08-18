@@ -55,6 +55,10 @@ describe("parsePageRanges", () => {
     expect(() => parsePageRanges("99", 4)).toThrow(/No valid pages/)
     expect(() => parsePageRanges("", 4)).toThrow(/No valid pages/)
   })
+
+  it("tolerates whitespace around numbers and dashes", () => {
+    expect(parsePageRanges(" 1 - 3 ,  5 ", 10)).toEqual([1, 2, 3, 5])
+  })
 })
 
 describe("parseRangeGroups", () => {
@@ -63,6 +67,11 @@ describe("parseRangeGroups", () => {
     expect(groups).toHaveLength(2)
     expect(groups[0]).toEqual({ label: "1-2", pages: [1, 2] })
     expect(groups[1]).toEqual({ label: "4", pages: [4] })
+  })
+
+  it("rejects invalid parts", () => {
+    expect(() => parseRangeGroups("1-2, oops", 10)).toThrow(/not a page number/)
+    expect(() => parseRangeGroups("", 10)).toThrow(/No valid pages/)
   })
 })
 
@@ -83,6 +92,13 @@ describe("mergePdfs", () => {
   it("concatenates documents in order", async () => {
     const blob = await mergePdfs([await makePdf(2), await makePdf(3)])
     expect(await pageWidths(blob)).toEqual([500, 501, 500, 501, 502])
+  })
+
+  it("fails with a friendly error when any input is corrupt", async () => {
+    const junk = new File([new Uint8Array([9, 9, 9])], "broken.pdf")
+    await expect(mergePdfs([await makePdf(1), junk])).rejects.toThrow(
+      /"broken\.pdf" could not be read/,
+    )
   })
 })
 
@@ -124,6 +140,14 @@ describe("rotatePdfPages", () => {
     const blob = await rotatePdfPages(await makePdf(3), [2], 180)
     const doc = await PDFDocument.load(await blob.arrayBuffer())
     expect(doc.getPages().map((p) => p.getRotation().angle)).toEqual([0, 180, 0])
+  })
+
+  it("wraps rotation past 360 degrees", async () => {
+    const first = await rotatePdfPages(await makePdf(1), null, 270)
+    const firstFile = new File([await first.arrayBuffer()], "r.pdf")
+    const second = await rotatePdfPages(firstFile, null, 180)
+    const doc = await PDFDocument.load(await second.arrayBuffer())
+    expect(doc.getPage(0).getRotation().angle).toBe(90)
   })
 })
 

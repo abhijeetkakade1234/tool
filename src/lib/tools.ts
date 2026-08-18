@@ -91,7 +91,7 @@ export const tools: ToolDef[] = [
     description: "Combine multiple PDFs into one, in the order you choose.",
     category: "pdf",
     icon: Layers,
-    available: false,
+    available: true,
   },
   {
     id: "pdf-split",
@@ -100,7 +100,7 @@ export const tools: ToolDef[] = [
     description: "Pull out pages or ranges into new PDFs.",
     category: "pdf",
     icon: Scissors,
-    available: false,
+    available: true,
   },
   {
     id: "pdf-delete",
@@ -109,7 +109,7 @@ export const tools: ToolDef[] = [
     description: "Remove pages you don't need.",
     category: "pdf",
     icon: Trash2,
-    available: false,
+    available: true,
   },
   {
     id: "pdf-reorder",
@@ -118,7 +118,7 @@ export const tools: ToolDef[] = [
     description: "Rearrange pages before exporting.",
     category: "pdf",
     icon: ListOrdered,
-    available: false,
+    available: true,
   },
   {
     id: "pdf-rotate",
@@ -127,7 +127,7 @@ export const tools: ToolDef[] = [
     description: "Rotate selected pages or the whole document.",
     category: "pdf",
     icon: RotateCw,
-    available: false,
+    available: true,
   },
   {
     id: "pdf-to-images",
@@ -145,7 +145,7 @@ export const tools: ToolDef[] = [
     description: "Turn JPG, PNG or WebP images into a PDF.",
     category: "pdf",
     icon: Images,
-    available: false,
+    available: true,
   },
   {
     id: "pdf-metadata",
@@ -154,7 +154,7 @@ export const tools: ToolDef[] = [
     description: "Title, author, page count and more.",
     category: "pdf",
     icon: FileOutput,
-    available: false,
+    available: true,
   },
 ]
 

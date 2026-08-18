@@ -1,13 +1,23 @@
 import { Suspense, lazy } from "react"
+import type { ComponentType, LazyExoticComponent } from "react"
 import { Route, Routes } from "react-router-dom"
 import { AppLayout } from "@/components/layout/AppLayout"
 import { HomePage } from "@/pages/HomePage"
 import { NotFoundPage } from "@/pages/NotFoundPage"
 
-const ImageConvertPage = lazy(() => import("@/features/images/convert/ImageConvertPage"))
-const ImageCompressPage = lazy(() => import("@/features/images/compress/ImageCompressPage"))
-const ImageResizePage = lazy(() => import("@/features/images/resize/ImageResizePage"))
-const ImageRotatePage = lazy(() => import("@/features/images/rotate/ImageRotatePage"))
+const toolRoutes: [string, LazyExoticComponent<ComponentType>][] = [
+  ["/image/convert", lazy(() => import("@/features/images/convert/ImageConvertPage"))],
+  ["/image/compress", lazy(() => import("@/features/images/compress/ImageCompressPage"))],
+  ["/image/resize", lazy(() => import("@/features/images/resize/ImageResizePage"))],
+  ["/image/rotate", lazy(() => import("@/features/images/rotate/ImageRotatePage"))],
+  ["/pdf/merge", lazy(() => import("@/features/pdf/merge/PdfMergePage"))],
+  ["/pdf/split", lazy(() => import("@/features/pdf/split/PdfSplitPage"))],
+  ["/pdf/delete", lazy(() => import("@/features/pdf/delete/PdfDeletePage"))],
+  ["/pdf/reorder", lazy(() => import("@/features/pdf/reorder/PdfReorderPage"))],
+  ["/pdf/rotate", lazy(() => import("@/features/pdf/rotate/PdfRotatePage"))],
+  ["/pdf/from-images", lazy(() => import("@/features/pdf/fromImages/ImagesToPdfPage"))],
+  ["/pdf/metadata", lazy(() => import("@/features/pdf/metadata/PdfMetadataPage"))],
+]
 
 function Loading() {
   return <p className="py-20 text-center text-sm text-muted-foreground">Loading…</p>
@@ -18,38 +28,17 @@ export default function App() {
     <Routes>
       <Route element={<AppLayout />}>
         <Route index element={<HomePage />} />
-        <Route
-          path="/image/convert"
-          element={
-            <Suspense fallback={<Loading />}>
-              <ImageConvertPage />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/image/compress"
-          element={
-            <Suspense fallback={<Loading />}>
-              <ImageCompressPage />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/image/resize"
-          element={
-            <Suspense fallback={<Loading />}>
-              <ImageResizePage />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/image/rotate"
-          element={
-            <Suspense fallback={<Loading />}>
-              <ImageRotatePage />
-            </Suspense>
-          }
-        />
+        {toolRoutes.map(([path, Page]) => (
+          <Route
+            key={path}
+            path={path}
+            element={
+              <Suspense fallback={<Loading />}>
+                <Page />
+              </Suspense>
+            }
+          />
+        ))}
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>

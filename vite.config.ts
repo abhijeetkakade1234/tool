@@ -13,8 +13,8 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["favicon.svg", "icon-192.png", "icon-512.png"],
       manifest: {
-        name: "Local File Tools",
-        short_name: "File Tools",
+        name: "FileForge",
+        short_name: "FileForge",
         description:
           "Local-first browser toolbox for PDFs and images. Files never leave your device.",
         theme_color: "#09090b",

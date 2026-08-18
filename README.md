@@ -1,4 +1,4 @@
-# Local File Tools
+# FileForge
 
 A **local-first, open-source browser toolbox** for working with PDFs and
 images without uploading files to a server.
@@ -43,7 +43,7 @@ And somehow the workflow becomes:
 8.  Discover that the quality changed.
 9.  Repeat the process for the next file.
 
-**Local File Tools** is meant to remove all of that.
+**FileForge** is meant to remove all of that.
 
 The browser already has enough capabilities to handle a huge amount of
 this work locally.

@@ -10,7 +10,7 @@ export function AppLayout() {
         <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-4">
           <Link to="/" className="flex items-center gap-2 font-semibold">
             <FileBox className="size-5" aria-hidden />
-            <span>Local File Tools</span>
+            <span>FileForge</span>
           </Link>
           <div className="flex items-center gap-2">
             <span className="hidden text-xs text-muted-foreground sm:inline">

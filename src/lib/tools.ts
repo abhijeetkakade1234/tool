@@ -136,7 +136,7 @@ export const tools: ToolDef[] = [
     description: "Render pages to JPG or PNG, single or ZIP.",
     category: "pdf",
     icon: FileImage,
-    available: false,
+    available: true,
   },
   {
     id: "images-to-pdf",

@@ -16,6 +16,7 @@ const toolRoutes: [string, LazyExoticComponent<ComponentType>][] = [
   ["/pdf/reorder", lazy(() => import("@/features/pdf/reorder/PdfReorderPage"))],
   ["/pdf/rotate", lazy(() => import("@/features/pdf/rotate/PdfRotatePage"))],
   ["/pdf/from-images", lazy(() => import("@/features/pdf/fromImages/ImagesToPdfPage"))],
+  ["/pdf/to-images", lazy(() => import("@/features/pdf/toImages/PdfToImagesPage"))],
   ["/pdf/metadata", lazy(() => import("@/features/pdf/metadata/PdfMetadataPage"))],
 ]
 

@@ -1320,8 +1320,8 @@ Potential future tools:
 -   [ ] PDF image extraction
 -   [x] HEIC conversion
 -   [x] EXIF viewer/remover
--   [ ] SVG conversion utilities
--   [ ] OCR where browser performance is acceptable
+-   [x] SVG conversion utilities
+-   [x] OCR where browser performance is acceptable
 
 ------------------------------------------------------------------------
 

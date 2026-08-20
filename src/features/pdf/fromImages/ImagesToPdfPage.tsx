@@ -17,9 +17,12 @@ import { ToolPage } from "@/components/ToolPage"
 import { acceptedImageTypes } from "@/lib/image"
 import { imagesToPdf, type PageSizeMode } from "@/lib/pdf"
 
+type OutputMode = "combine" | "separate"
+
 export default function ImagesToPdfPage() {
   const [files, setFiles] = useState<File[]>([])
   const [pageSize, setPageSize] = useState<PageSizeMode>("image")
+  const [output, setOutput] = useState<OutputMode>("combine")
   const [results, setResults] = useState<ResultEntry[]>([])
   const [busy, setBusy] = useState(false)
 
@@ -27,8 +30,18 @@ export default function ImagesToPdfPage() {
     setBusy(true)
     setResults([])
     try {
-      const blob = await imagesToPdf(files, pageSize)
-      setResults([{ blob, filename: "images.pdf", note: `${files.length} pages` }])
+      if (output === "separate" && files.length > 1) {
+        const entries: ResultEntry[] = []
+        for (const file of files) {
+          const blob = await imagesToPdf([file], pageSize)
+          const base = file.name.replace(/\.[^.]+$/, "")
+          entries.push({ blob, filename: `${base}.pdf`, note: "1 page" })
+        }
+        setResults(entries)
+      } else {
+        const blob = await imagesToPdf(files, pageSize)
+        setResults([{ blob, filename: "images.pdf", note: `${files.length} pages` }])
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Conversion failed.")
     }
@@ -52,20 +65,40 @@ export default function ImagesToPdfPage() {
       {files.length > 0 && (
         <Card>
           <CardContent className="space-y-4">
-            <div className="max-w-60 space-y-2">
-              <Label>Page size</Label>
-              <Select value={pageSize} onValueChange={(v) => setPageSize(v as PageSizeMode)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="image">Match image size</SelectItem>
-                  <SelectItem value="a4">A4 with margins</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex flex-wrap gap-4">
+              <div className="w-full max-w-60 space-y-2">
+                <Label>Page size</Label>
+                <Select value={pageSize} onValueChange={(v) => setPageSize(v as PageSizeMode)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="image">Match image size</SelectItem>
+                    <SelectItem value="a4">A4 with margins</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {files.length > 1 && (
+                <div className="w-full max-w-60 space-y-2">
+                  <Label>Output</Label>
+                  <Select value={output} onValueChange={(v) => setOutput(v as OutputMode)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="combine">One combined PDF</SelectItem>
+                      <SelectItem value="separate">One PDF per image</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
             <Button onClick={run} disabled={busy} className="w-full sm:w-auto">
-              {busy ? "Building PDF…" : `Create PDF from ${files.length} image${files.length > 1 ? "s" : ""}`}
+              {busy
+                ? "Building PDF…"
+                : output === "separate" && files.length > 1
+                  ? `Create ${files.length} PDFs`
+                  : `Create PDF from ${files.length} image${files.length > 1 ? "s" : ""}`}
             </Button>
           </CardContent>
         </Card>

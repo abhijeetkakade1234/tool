@@ -582,7 +582,8 @@ Where available, also show:
 
 Video runs on ffmpeg compiled to WebAssembly (ffmpeg.wasm). The engine is
 about 32 MB, so it is fetched from a CDN the first time a video tool is
-used and then cached by the browser. The video itself is written into the
+used and then kept in Cache Storage, so later visits start instantly and
+work offline. The video itself is written into the
 in-memory ffmpeg filesystem and never leaves the device — same guarantee
 as every other tool here.
 

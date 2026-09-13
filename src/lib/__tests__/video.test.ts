@@ -3,6 +3,7 @@ import {
   audioCodecArgs,
   copyContainer,
   equalSegments,
+  expectedBytes,
   ffmpegError,
   fixedSegments,
   formatTimecode,
@@ -210,6 +211,27 @@ describe("argument builders", () => {
     expect(filter).toContain("palettegen")
     expect(filter).toContain("paletteuse=dither=bayer")
     expect(gifFilter({ fps: 12, width: 480, dither: false })).toContain("dither=none")
+  })
+})
+
+describe("expectedBytes", () => {
+  const headers = (init: Record<string, string>) => new Headers(init)
+
+  it("uses Content-Length when the body is not encoded", () => {
+    expect(expectedBytes(headers({ "Content-Length": "1000" }), 500)).toBe(1000)
+  })
+
+  it("falls back to the estimate for gzipped responses", () => {
+    // The reported length is the packed size, so it would overshoot the progress bar.
+    expect(
+      expectedBytes(headers({ "Content-Length": "1000", "Content-Encoding": "gzip" }), 4000),
+    ).toBe(4000)
+  })
+
+  it("falls back to the estimate when the length is missing or junk", () => {
+    expect(expectedBytes(headers({}), 4000)).toBe(4000)
+    expect(expectedBytes(headers({ "Content-Length": "0" }), 4000)).toBe(4000)
+    expect(expectedBytes(headers({ "Content-Length": "nonsense" }), 4000)).toBe(4000)
   })
 })
 

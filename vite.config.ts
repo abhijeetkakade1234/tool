@@ -51,7 +51,7 @@ export default defineConfig({
   // ffmpeg.wasm spins up its own worker from an import.meta.url reference; letting
   // esbuild pre-bundle it rewrites that URL and breaks the worker at runtime.
   optimizeDeps: {
-    exclude: ["@ffmpeg/ffmpeg", "@ffmpeg/util"],
+    exclude: ["@ffmpeg/ffmpeg"],
   },
   resolve: {
     alias: {

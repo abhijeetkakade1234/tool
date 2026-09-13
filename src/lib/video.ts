@@ -295,26 +295,120 @@ export interface LoadHooks {
 let instance: FFmpeg | null = null
 let loadPromise: Promise<FFmpeg> | null = null
 
+/** Roughly the decompressed size of ffmpeg-core.wasm, used when the server does
+ * not report one (CDNs gzip the response, so Content-Length is the packed size). */
+const CORE_WASM_BYTES = 32 * 1024 * 1024
+
+const CORE_CACHE = "ffmpeg-core"
+
+/**
+ * How many bytes to expect for a download. A gzipped response reports the packed
+ * length, which would drive the progress bar past 100%, so fall back to the
+ * estimate whenever the body is encoded or no length is given.
+ */
+export function expectedBytes(headers: Headers, estimate: number): number {
+  if (headers.get("Content-Encoding")) return estimate
+  const length = Number(headers.get("Content-Length"))
+  return Number.isFinite(length) && length > 0 ? length : estimate
+}
+
+async function cachedResponse(url: string): Promise<Response | null> {
+  try {
+    const cache = await caches.open(CORE_CACHE)
+    return (await cache.match(url)) ?? null
+  } catch {
+    // Cache Storage is unavailable in some private-browsing modes.
+    return null
+  }
+}
+
+async function cacheResponse(url: string, blob: Blob): Promise<void> {
+  try {
+    const cache = await caches.open(CORE_CACHE)
+    await cache.put(url, new Response(blob))
+  } catch {
+    // Storage full or unavailable — the engine still works, it just re-downloads.
+  }
+}
+
+/**
+ * Downloads one engine asset and hands back a blob URL.
+ *
+ * @ffmpeg/util does this too, but its progress path re-reads an already consumed
+ * response body when the stream fails, which turns any hiccup into a confusing
+ * "body stream already read" error. Reading it here keeps one response, one read.
+ */
+async function assetBlobURL(
+  url: string,
+  mimeType: string,
+  estimate: number,
+  onProgress?: (ratio: number) => void,
+): Promise<string> {
+  const cached = await cachedResponse(url)
+  if (cached) {
+    onProgress?.(1)
+    return URL.createObjectURL(new Blob([await cached.arrayBuffer()], { type: mimeType }))
+  }
+
+  const blob = await downloadBlob(url, mimeType, estimate, onProgress)
+  void cacheResponse(url, blob)
+  return URL.createObjectURL(blob)
+}
+
+/** Fetches a URL into a Blob, reporting 0..1 progress. Exported for tests. */
+export async function downloadBlob(
+  url: string,
+  mimeType: string,
+  estimate: number,
+  onProgress?: (ratio: number) => void,
+): Promise<Blob> {
+  const response = await fetch(url)
+  if (!response.ok) throw new Error(`${url} returned ${response.status} ${response.statusText}`)
+
+  const reader = response.body?.getReader()
+  if (!reader) return new Blob([await response.arrayBuffer()], { type: mimeType })
+
+  const total = expectedBytes(response.headers, estimate)
+  const chunks: Uint8Array[] = []
+  let received = 0
+  try {
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      chunks.push(value)
+      received += value.length
+      onProgress?.(Math.min(0.99, received / total))
+    }
+  } catch {
+    // The body is spent, so a retry needs a brand new request.
+    const retry = await fetch(url)
+    if (!retry.ok) throw new Error(`${url} returned ${retry.status} ${retry.statusText}`)
+    const blob = new Blob([await retry.arrayBuffer()], { type: mimeType })
+    onProgress?.(1)
+    return blob
+  }
+
+  onProgress?.(1)
+  return new Blob(chunks as BlobPart[], { type: mimeType })
+}
+
 async function loadFFmpeg(hooks: LoadHooks): Promise<FFmpeg> {
-  const [{ FFmpeg }, { toBlobURL }] = await Promise.all([
-    import("@ffmpeg/ffmpeg"),
-    import("@ffmpeg/util"),
-  ])
+  const { FFmpeg } = await import("@ffmpeg/ffmpeg")
   const ffmpeg = new FFmpeg()
 
   let lastError: unknown = null
   for (const base of CORE_BASES) {
     try {
-      const coreURL = await toBlobURL(`${base}/ffmpeg-core.js`, "text/javascript")
-      const wasmURL = await toBlobURL(
+      const coreURL = await assetBlobURL(
+        `${base}/ffmpeg-core.js`,
+        "text/javascript",
+        200 * 1024,
+      )
+      const wasmURL = await assetBlobURL(
         `${base}/ffmpeg-core.wasm`,
         "application/wasm",
-        true,
-        (event) => {
-          if (event.total > 0) {
-            hooks.onDownload?.(Math.min(1, Math.max(0, event.received / event.total)))
-          }
-        },
+        CORE_WASM_BYTES,
+        hooks.onDownload,
       )
       await ffmpeg.load({ coreURL, wasmURL })
       hooks.onDownload?.(1)

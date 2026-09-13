@@ -5,9 +5,17 @@ import type { FFmpeg } from "@ffmpeg/ffmpeg"
  * on first use and cached by the browser; the video itself never leaves the device.
  */
 const CORE_VERSION = "0.12.10"
+
+/**
+ * The ESM core build, not the UMD one the ffmpeg.wasm README suggests.
+ * ffmpeg's worker tries `importScripts(coreURL)` first and falls back to
+ * `import(coreURL)`. Vite serves module workers in dev, where importScripts does
+ * not exist, so a UMD core cannot be loaded at all; the ESM build imports cleanly
+ * in both worker types, and the wasm URL is handed to it explicitly either way.
+ */
 const CORE_BASES = [
-  `https://unpkg.com/@ffmpeg/core@${CORE_VERSION}/dist/umd`,
-  `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${CORE_VERSION}/dist/umd`,
+  `https://unpkg.com/@ffmpeg/core@${CORE_VERSION}/dist/esm`,
+  `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${CORE_VERSION}/dist/esm`,
 ]
 
 export const acceptedVideoTypes = "video/*,.mkv,.avi,.mov,.webm,.mp4,.m4v,.mpg,.mpeg,.ts"
@@ -152,6 +160,40 @@ export function segmentsFromCutPoints(text: string, duration: number): Segment[]
     if (bounds[i + 1] - bounds[i] > 0.05) segments.push({ start: bounds[i], end: bounds[i + 1] })
   }
   return segments
+}
+
+/**
+ * Cut points for ffmpeg's segment muxer: the inner boundaries only, since the
+ * start of the first part and the end of the last one are the file's own ends.
+ */
+export function segmentTimes(segments: Segment[]): string {
+  return segments
+    .slice(1)
+    .map((s) => s.start.toFixed(3))
+    .join(",")
+}
+
+/**
+ * Splits a file into parts without re-encoding. The segment muxer starts each new
+ * part on a keyframe, so parts never overlap and no frame is lost — but a file with
+ * sparse keyframes yields fewer parts than asked for.
+ */
+export function segmentArgs(segments: Segment[], pattern: string): string[] {
+  return [
+    "-i",
+    "INPUT",
+    "-c",
+    "copy",
+    "-map",
+    "0",
+    "-f",
+    "segment",
+    "-segment_times",
+    segmentTimes(segments),
+    "-reset_timestamps",
+    "1",
+    pattern,
+  ]
 }
 
 /* ------------------------------------------------------------------ */
@@ -414,14 +456,28 @@ async function loadFFmpeg(hooks: LoadHooks): Promise<FFmpeg> {
       hooks.onDownload?.(1)
       return ffmpeg
     } catch (e) {
+      // The worker clones rejections, so what arrives here is not always an Error.
+      console.error(`ffmpeg core failed to load from ${base}`, e)
       lastError = e
     }
   }
+  const detail = describeError(lastError)
   throw new Error(
-    lastError instanceof Error && lastError.message
-      ? `Could not load the video engine: ${lastError.message}`
+    detail
+      ? `Could not load the video engine: ${detail}`
       : "Could not load the video engine. Check your connection and try again.",
   )
+}
+
+/** Pulls a message out of whatever a worker rejection turns into. */
+function describeError(e: unknown): string {
+  if (typeof e === "string") return e
+  if (e instanceof Error) return e.message
+  if (e && typeof e === "object" && "message" in e) {
+    const { message } = e as { message: unknown }
+    if (typeof message === "string") return message
+  }
+  return ""
 }
 
 export async function getFFmpeg(hooks: LoadHooks = {}): Promise<FFmpeg> {
@@ -458,6 +514,11 @@ export interface VideoJob {
    * Use the literal "INPUT" and "OUTPUT" tokens inside `args`.
    */
   run(args: string[], outputName: string, mimeType: string): Promise<Blob>
+  /**
+   * Runs one invocation that writes several files (the segment muxer) and collects
+   * every output whose name starts with `prefix`, in order.
+   */
+  runMany(args: string[], prefix: string, mimeType: string): Promise<Blob[]>
 }
 
 function extensionOf(name: string): string {
@@ -500,27 +561,50 @@ export async function processVideo<T>(
       await ffmpeg.writeFile(inputName, new Uint8Array(await file.arrayBuffer()))
       written.push(inputName)
 
+      const exec = async (args: string[], outputName?: string) => {
+        const resolved = args.map((a) =>
+          a === "INPUT" ? inputName : a === "OUTPUT" && outputName ? outputName : a,
+        )
+        if (outputName && !resolved.includes(outputName)) resolved.push(outputName)
+        logs.length = 0
+        hooks.onProgress?.(0)
+        const code = await ffmpeg.exec(resolved)
+        if (code !== 0) throw new Error(ffmpegError(logs))
+      }
+
+      const collect = async (name: string, mimeType: string) => {
+        const data = await ffmpeg.readFile(name)
+        if (typeof data === "string") throw new Error("ffmpeg returned unexpected text output.")
+        // Copy out of the wasm heap so the Blob survives the next run.
+        const bytes = new Uint8Array(data.length)
+        bytes.set(data)
+        if (bytes.length === 0) throw new Error(ffmpegError(logs))
+        return new Blob([bytes], { type: mimeType })
+      }
+
       const job: VideoJob = {
         async run(args, outputName, mimeType) {
-          const resolved = args.map((a) =>
-            a === "INPUT" ? inputName : a === "OUTPUT" ? outputName : a,
-          )
-          if (!resolved.includes(outputName)) resolved.push(outputName)
-          logs.length = 0
-          hooks.onProgress?.(0)
-
-          const code = await ffmpeg.exec(resolved)
-          if (code !== 0) throw new Error(ffmpegError(logs))
+          await exec(args, outputName)
           written.push(outputName)
-
-          const data = await ffmpeg.readFile(outputName)
-          if (typeof data === "string") throw new Error("ffmpeg returned unexpected text output.")
-          // Copy out of the wasm heap so the Blob survives the next run.
-          const bytes = new Uint8Array(data.length)
-          bytes.set(data)
-          if (bytes.length === 0) throw new Error(ffmpegError(logs))
+          const blob = await collect(outputName, mimeType)
           hooks.onProgress?.(1)
-          return new Blob([bytes], { type: mimeType })
+          return blob
+        },
+        async runMany(args, prefix, mimeType) {
+          await exec(args)
+          const nodes = await ffmpeg.listDir("/")
+          const names = nodes
+            .filter((n) => !n.isDir && n.name.startsWith(prefix))
+            .map((n) => n.name)
+            .sort()
+          if (names.length === 0) throw new Error(ffmpegError(logs))
+          const blobs: Blob[] = []
+          for (const name of names) {
+            written.push(name)
+            blobs.push(await collect(name, mimeType))
+          }
+          hooks.onProgress?.(1)
+          return blobs
         },
       }
 

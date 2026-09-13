@@ -15,9 +15,9 @@ import {
   equalSegments,
   fixedSegments,
   formatTimecode,
+  probeVideo,
+  segmentArgs,
   segmentsFromCutPoints,
-  timecodeSlug,
-  trimArgs,
   type Segment,
 } from "@/lib/video"
 import { JobStatus, VideoPreview } from "../VideoParts"
@@ -77,25 +77,32 @@ export default function VideoSplitPage() {
     const base = stripExtension(source.file.name)
     const container = copyContainer(source.file.name)
 
-    const out = await job.run(source.file, async (runner) => {
-      const entries: ResultEntry[] = []
-      for (const [index, segment] of segments.entries()) {
-        const output = `part-${index + 1}.${container.ext}`
-        const blob = await runner.run(
-          [...trimArgs(segment.start, segment.end, true), output],
-          output,
-          container.mime,
-        )
-        entries.push({
-          blob,
-          filename: `${base}-part-${String(index + 1).padStart(2, "0")}-${timecodeSlug(segment.start)}.${container.ext}`,
-          note: `${formatTimecode(segment.start)} → ${formatTimecode(segment.end)}`,
-        })
-      }
-      return entries
-    })
+    const blobs = await job.run(source.file, async (runner) =>
+      await runner.runMany(
+        segmentArgs(segments, `part-%03d.${container.ext}`),
+        "part-",
+        container.mime,
+      ),
+    )
+    if (!blobs) return
 
-    if (out) setResults(out)
+    const entries: ResultEntry[] = []
+    for (const [index, blob] of blobs.entries()) {
+      const meta = await probeVideo(blob)
+      entries.push({
+        blob,
+        filename: `${base}-part-${String(index + 1).padStart(2, "0")}.${container.ext}`,
+        note: meta ? formatTimecode(meta.duration, 1) : undefined,
+      })
+    }
+    setResults(entries)
+
+    if (blobs.length < segments.length) {
+      toast.warning(
+        `This video only had keyframes for ${blobs.length} part${blobs.length > 1 ? "s" : ""}. ` +
+          "Parts can only start on a keyframe — convert the video first to add more, or use Trim in precise mode.",
+      )
+    }
   }
 
   return (
@@ -166,8 +173,9 @@ export default function VideoSplitPage() {
               )}
 
               <p className="text-xs text-muted-foreground">
-                Cuts snap to the nearest keyframe, so a part can start a moment earlier than
-                asked. Use Trim in precise mode when the exact frame matters.
+                Parts are cut without re-encoding, so each one starts on a keyframe and the
+                boundary can land a moment away from the time you asked for. Nothing is
+                duplicated or lost. Use Trim in precise mode when the exact frame matters.
               </p>
               <JobStatus job={job} />
               <Button onClick={run} disabled={job.busy} className="w-full sm:w-auto">

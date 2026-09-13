@@ -10,6 +10,8 @@ import {
   gifFilter,
   parseTimecode,
   scaleFilter,
+  segmentArgs,
+  segmentTimes,
   segmentsFromCutPoints,
   timecodeSlug,
   transcodeArgs,
@@ -125,6 +127,28 @@ describe("segmentsFromCutPoints", () => {
     expect(() => segmentsFromCutPoints("abc", 90)).toThrow(/not a valid time/i)
     expect(() => segmentsFromCutPoints("120", 90)).toThrow(/past the end/i)
     expect(() => segmentsFromCutPoints("0", 90)).toThrow(/greater than 0/i)
+  })
+})
+
+describe("segment muxing", () => {
+  const parts = [
+    { start: 0, end: 30 },
+    { start: 30, end: 60 },
+    { start: 60, end: 90 },
+  ]
+
+  it("lists only the inner cut points", () => {
+    expect(segmentTimes(parts)).toBe("30.000,60.000")
+    expect(segmentTimes([{ start: 0, end: 10 }])).toBe("")
+  })
+
+  it("copies streams and numbers the outputs", () => {
+    const args = segmentArgs(parts, "part-%03d.mp4")
+    expect(args).toContain("segment")
+    expect(args).toContain("-reset_timestamps")
+    expect(args[args.indexOf("-segment_times") + 1]).toBe("30.000,60.000")
+    expect(args.at(-1)).toBe("part-%03d.mp4")
+    expect(args.join(" ")).toContain("-c copy")
   })
 })
 

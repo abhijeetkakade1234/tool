@@ -35,6 +35,7 @@ const toolRoutes: [string, LazyExoticComponent<ComponentType>][] = [
   ["/util/hash", lazy(() => import("@/features/utils/hash/FileHashPage"))],
   ["/util/qr", lazy(() => import("@/features/utils/qr/QrPage"))],
   ["/util/favicon", lazy(() => import("@/features/utils/favicon/FaviconPage"))],
+  ["/util/link-preview", lazy(() => import("@/features/utils/linkPreview/LinkPreviewPage"))],
 ]
 
 function Loading() {

@@ -655,6 +655,45 @@ stay close to the source. Width, frame rate and dithering are adjustable.
 
 ------------------------------------------------------------------------
 
+# Link Preview
+
+Paste a URL and see how the link will look when shared on:
+
+``` text
+Google Search   X (Twitter)   Facebook   LinkedIn
+WhatsApp        Slack         Discord    iMessage
+```
+
+It reads the page's `<title>`, meta description, Open Graph (`og:*`),
+Twitter (`twitter:*`), canonical, favicon and `theme-color` tags, applies
+each platform's fallback order, measures the `og:image`, and lists
+problems (missing tags, relative image URLs, images under 200×200 or off
+the 1.91:1 ratio, titles Google will truncate). It also produces a
+ready-to-paste tag set filled from the page.
+
+**This is the one tool that uses the network.** Browsers can't read
+another site's HTML (CORS), so the URL goes to a tiny page fetcher:
+
+``` text
+functions/api/fetch-page.ts   Cloudflare Pages Function (production)
+vite.config.ts                same handler as dev/preview middleware
+src/lib/server/fetchPage.ts   the shared logic
+```
+
+The fetcher only receives a URL — never a file — and stores nothing. It
+refuses non-http(s) URLs, localhost and private network addresses
+(re-checked on every redirect), gives up after 5 redirects or 10
+seconds, reads at most 2 MB, only accepts HTML responses, returns JSON
+rather than the raw page, and sends no CORS headers so other sites can't
+use it from a browser. The dev server allows localhost targets so local
+pages can be previewed.
+
+Pages behind a login or bot protection may not load; the **Paste HTML**
+tab parses pasted source entirely in the browser instead. On a static
+host without Functions, only Paste HTML works.
+
+------------------------------------------------------------------------
+
 # Batch Processing
 
 Batch operations are an important part of the project.

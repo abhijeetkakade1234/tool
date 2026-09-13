@@ -21,6 +21,7 @@ import {
   Globe,
   Hash,
   ListOrdered,
+  MessageSquareShare,
   QrCode,
   Film,
   FileVideoCamera,
@@ -305,6 +306,15 @@ export const tools: ToolDef[] = [
     description: "SHA-256, SHA-1 and SHA-512 checksums for any file.",
     category: "utility",
     icon: Hash,
+    available: true,
+  },
+  {
+    id: "link-preview",
+    path: "/util/link-preview",
+    name: "Link Preview",
+    description: "See how a URL looks when shared on Google, X, WhatsApp, Slack and more.",
+    category: "utility",
+    icon: MessageSquareShare,
     available: true,
   },
 ]

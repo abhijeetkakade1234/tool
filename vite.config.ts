@@ -1,14 +1,39 @@
 import path from "node:path"
-import { defineConfig } from "vite"
+import { defineConfig, type Connect, type Plugin } from "vite"
 import react from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
 import { VitePWA } from "vite-plugin-pwa"
+import { handleFetchPage } from "./src/lib/server/fetchPage.ts"
+
+/**
+ * Serves the Link Preview page fetcher at /api/fetch-page under `vite dev` and
+ * `vite preview`. In production the same handler runs as a Cloudflare Pages
+ * Function (functions/api/fetch-page.ts).
+ */
+function fetchPageApi(): Plugin {
+  const middleware: Connect.NextHandleFunction = (req, res, next) => {
+    if (!req.url?.startsWith("/api/fetch-page")) return next()
+    const request = new Request(new URL(req.url, "http://localhost"), { method: req.method })
+    // Locally, previewing localhost / LAN pages is useful, so private hosts are allowed.
+    handleFetchPage(request, { allowPrivate: true }).then(async (response) => {
+      res.statusCode = response.status
+      response.headers.forEach((value, key) => res.setHeader(key, value))
+      res.end(await response.text())
+    }, next)
+  }
+  return {
+    name: "fileforge-fetch-page-api",
+    configureServer: (server) => void server.middlewares.use(middleware),
+    configurePreviewServer: (server) => void server.middlewares.use(middleware),
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    fetchPageApi(),
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["favicon.svg", "icon-192.png", "icon-512.png"],

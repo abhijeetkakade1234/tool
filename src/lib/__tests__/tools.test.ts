@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import { describe, expect, it } from "vitest"
-import { imageTools, pdfTools, tools, utilityTools } from "../tools"
+import { imageTools, pdfTools, tools, utilityTools, videoTools } from "../tools"
 
 const appSource = readFileSync(
   fileURLToPath(new URL("../../App.tsx", import.meta.url)),
@@ -20,14 +20,21 @@ describe("tool registry", () => {
   })
 
   it("path prefix matches category", () => {
-    const prefix = { image: "/image/", pdf: "/pdf/", utility: "/util/" } as const
+    const prefix = {
+      image: "/image/",
+      pdf: "/pdf/",
+      video: "/video/",
+      utility: "/util/",
+    } as const
     for (const t of tools) {
       expect(t.path.startsWith(prefix[t.category])).toBe(true)
     }
   })
 
   it("categories partition the registry", () => {
-    expect(imageTools.length + pdfTools.length + utilityTools.length).toBe(tools.length)
+    expect(
+      imageTools.length + pdfTools.length + videoTools.length + utilityTools.length,
+    ).toBe(tools.length)
   })
 
   it("every tool has a name and a description", () => {
@@ -44,7 +51,7 @@ describe("tool registry", () => {
   })
 
   it("every route in App.tsx has a registry entry", () => {
-    const routePaths = [...appSource.matchAll(/\["(\/(?:image|pdf|util)\/[^"]+)"/g)].map(
+    const routePaths = [...appSource.matchAll(/\["(\/(?:image|pdf|video|util)\/[^"]+)"/g)].map(
       (m) => m[1],
     )
     expect(routePaths.length).toBeGreaterThan(0)

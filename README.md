@@ -163,11 +163,12 @@ inspect.
 
 # Features
 
-The project is divided into two major areas:
+The project is divided into three major areas:
 
 ``` text
 PDF Tools
 Image Tools
+Video Tools
 ```
 
 Additional utilities can be added later.
@@ -574,6 +575,82 @@ Where available, also show:
 -   camera information
 -   orientation
 -   capture date
+
+------------------------------------------------------------------------
+
+# Video Tools
+
+Video runs on ffmpeg compiled to WebAssembly (ffmpeg.wasm). The engine is
+about 32 MB, so it is fetched from a CDN the first time a video tool is
+used and then cached by the browser. The video itself is written into the
+in-memory ffmpeg filesystem and never leaves the device — same guarantee
+as every other tool here.
+
+Because the whole file has to fit in memory, very large videos (roughly
+over 2 GB) are the practical ceiling, and re-encoding runs at around real
+time rather than at native ffmpeg speed.
+
+## Trim Video
+
+Keep a single section of a video.
+
+Two modes:
+
+-   **Fast** — copies the streams without re-encoding. Instant and
+    lossless, but the cut snaps back to the keyframe before the chosen
+    start, so the clip can begin slightly early.
+-   **Precise** — re-encodes with H.264/AAC and cuts exactly where asked.
+
+The result panel reports the length of the file that was actually
+produced, not the requested length.
+
+## Split Video
+
+Cut one video into several files:
+
+-   equal parts
+-   fixed-length chunks
+-   custom cut points, e.g. `0:30, 1:15, 2:40`
+
+Segments are stream-copied, so splitting is fast and lossless. Each part
+starts at a keyframe.
+
+## Mute Video
+
+Drops the audio track and copies the video stream untouched — no quality
+loss and no re-encode.
+
+## Video → MP3 / Audio
+
+Extracts the soundtrack as:
+
+``` text
+MP3   (libmp3lame)
+M4A   (AAC)
+Opus
+WAV   (16-bit PCM)
+```
+
+Bitrate is selectable for the compressed formats, and an optional range
+limits the extraction to one section of the video.
+
+## Convert / Compress Video
+
+Re-encodes to:
+
+``` text
+MP4   H.264 + AAC
+WebM  VP9 + Opus
+```
+
+with controls for resolution (never upscaled), frame rate, a quality
+slider mapped onto the codec's CRF range, and an option to drop audio.
+
+## Video → GIF
+
+Renders up to 60 seconds of video into an animated GIF, using a palette
+generated from the clip itself (`palettegen`/`paletteuse`) so colours
+stay close to the source. Width, frame rate and dithering are adjustable.
 
 ------------------------------------------------------------------------
 

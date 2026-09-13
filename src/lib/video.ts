@@ -1,0 +1,463 @@
+import type { FFmpeg } from "@ffmpeg/ffmpeg"
+
+/**
+ * Video processing runs on ffmpeg.wasm. The engine (~32 MB) is fetched from a CDN
+ * on first use and cached by the browser; the video itself never leaves the device.
+ */
+const CORE_VERSION = "0.12.10"
+const CORE_BASES = [
+  `https://unpkg.com/@ffmpeg/core@${CORE_VERSION}/dist/umd`,
+  `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${CORE_VERSION}/dist/umd`,
+]
+
+export const acceptedVideoTypes = "video/*,.mkv,.avi,.mov,.webm,.mp4,.m4v,.mpg,.mpeg,.ts"
+
+export interface VideoMeta {
+  duration: number
+  width: number
+  height: number
+}
+
+/**
+ * Reads duration and dimensions with a <video> element. Returns null for containers
+ * the browser cannot decode (mkv, avi, …) — ffmpeg still handles those, the UI just
+ * has to ask for timecodes instead of offering a scrubber. Also used to report the
+ * real length of a result, which a keyframe-snapped copy can stretch.
+ */
+export async function probeVideo(file: Blob): Promise<VideoMeta | null> {
+  const url = URL.createObjectURL(file)
+  try {
+    return await new Promise<VideoMeta | null>((resolve) => {
+      const video = document.createElement("video")
+      video.preload = "metadata"
+      video.muted = true
+      const done = (meta: VideoMeta | null) => {
+        video.removeAttribute("src")
+        video.load()
+        resolve(meta)
+      }
+      const timer = setTimeout(() => done(null), 15_000)
+      video.onloadedmetadata = () => {
+        clearTimeout(timer)
+        const duration = Number.isFinite(video.duration) ? video.duration : 0
+        done(
+          duration > 0
+            ? { duration, width: video.videoWidth, height: video.videoHeight }
+            : null,
+        )
+      }
+      video.onerror = () => {
+        clearTimeout(timer)
+        done(null)
+      }
+      video.src = url
+    })
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(url), 1_000)
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Timecodes                                                           */
+/* ------------------------------------------------------------------ */
+
+/** Parses "90", "1:30", "00:01:30.5" into seconds. Returns null when unparsable. */
+export function parseTimecode(value: string): number | null {
+  const text = value.trim()
+  if (!text) return null
+  const parts = text.split(":")
+  if (parts.length > 3) return null
+  let seconds = 0
+  for (const part of parts) {
+    if (!/^\d*\.?\d+$/.test(part.trim())) return null
+    seconds = seconds * 60 + Number(part)
+  }
+  return Number.isFinite(seconds) ? seconds : null
+}
+
+/** Formats seconds as m:ss, or h:mm:ss past an hour. `decimals` adds fractions. */
+export function formatTimecode(seconds: number, decimals = 0): string {
+  const total = Math.max(0, seconds)
+  const hours = Math.floor(total / 3600)
+  const minutes = Math.floor((total % 3600) / 60)
+  const secs = total % 60
+  const pad = (n: number) => String(Math.floor(n)).padStart(2, "0")
+  const secText = decimals > 0 ? secs.toFixed(decimals).padStart(decimals + 3, "0") : pad(secs)
+  return hours > 0 ? `${hours}:${pad(minutes)}:${secText}` : `${minutes}:${secText}`
+}
+
+/** Timecode shaped for a filename: 1:02:03 -> 01h02m03s */
+export function timecodeSlug(seconds: number): string {
+  const total = Math.max(0, Math.round(seconds))
+  const h = Math.floor(total / 3600)
+  const m = Math.floor((total % 3600) / 60)
+  const s = total % 60
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return h > 0 ? `${pad(h)}h${pad(m)}m${pad(s)}s` : `${pad(m)}m${pad(s)}s`
+}
+
+export interface Segment {
+  start: number
+  end: number
+}
+
+/** Splits [0, duration) into `count` segments of equal length. */
+export function equalSegments(duration: number, count: number): Segment[] {
+  if (!(duration > 0) || !Number.isFinite(count) || count < 1) return []
+  const parts = Math.min(Math.floor(count), 200)
+  const size = duration / parts
+  return Array.from({ length: parts }, (_, i) => ({
+    start: i * size,
+    end: i === parts - 1 ? duration : (i + 1) * size,
+  }))
+}
+
+/** Splits [0, duration) into segments of at most `size` seconds. */
+export function fixedSegments(duration: number, size: number): Segment[] {
+  if (!(duration > 0) || !(size > 0)) return []
+  const count = Math.min(Math.ceil(duration / size), 200)
+  return Array.from({ length: count }, (_, i) => ({
+    start: i * size,
+    end: Math.min((i + 1) * size, duration),
+  }))
+}
+
+/**
+ * Turns comma/newline separated cut points into segments covering the whole video.
+ * Throws with a readable message on bad input so pages can surface it in a toast.
+ */
+export function segmentsFromCutPoints(text: string, duration: number): Segment[] {
+  const tokens = text
+    .split(/[\n,]/)
+    .map((t) => t.trim())
+    .filter(Boolean)
+  if (tokens.length === 0) throw new Error("Enter at least one cut point, e.g. 0:30, 1:15")
+
+  const points: number[] = []
+  for (const token of tokens) {
+    const seconds = parseTimecode(token)
+    if (seconds === null) throw new Error(`"${token}" is not a valid time. Use 0:30 or 90.`)
+    if (duration > 0 && seconds >= duration) {
+      throw new Error(`"${token}" is past the end of the video.`)
+    }
+    if (seconds > 0) points.push(seconds)
+  }
+
+  const sorted = [...new Set(points)].sort((a, b) => a - b)
+  if (sorted.length === 0) throw new Error("Cut points must be greater than 0.")
+
+  const bounds = [0, ...sorted, duration]
+  const segments: Segment[] = []
+  for (let i = 0; i < bounds.length - 1; i++) {
+    if (bounds[i + 1] - bounds[i] > 0.05) segments.push({ start: bounds[i], end: bounds[i + 1] })
+  }
+  return segments
+}
+
+/* ------------------------------------------------------------------ */
+/* Encoder argument builders                                           */
+/* ------------------------------------------------------------------ */
+
+export type VideoFormat = "mp4" | "webm"
+export type AudioFormat = "mp3" | "m4a" | "wav" | "opus"
+
+export const videoMimeTypes: Record<VideoFormat, string> = {
+  mp4: "video/mp4",
+  webm: "video/webm",
+}
+
+export const audioMimeTypes: Record<AudioFormat, string> = {
+  mp3: "audio/mpeg",
+  m4a: "audio/mp4",
+  wav: "audio/wav",
+  opus: "audio/ogg",
+}
+
+/** Audio-only encoder flags. WAV is uncompressed, so bitrate does not apply. */
+export function audioCodecArgs(format: AudioFormat, bitrateKbps: number): string[] {
+  const rate = `${Math.round(bitrateKbps)}k`
+  switch (format) {
+    case "mp3":
+      return ["-c:a", "libmp3lame", "-b:a", rate]
+    case "m4a":
+      return ["-c:a", "aac", "-b:a", rate]
+    case "opus":
+      return ["-c:a", "libopus", "-b:a", rate]
+    case "wav":
+      return ["-c:a", "pcm_s16le"]
+  }
+}
+
+/**
+ * Scale filter that keeps the aspect ratio and never upscales.
+ * -2 keeps the other side even, which h264 and vp9 both require.
+ */
+export function scaleFilter(maxHeight: number | null): string | null {
+  if (!maxHeight || maxHeight <= 0) return null
+  return `scale=-2:'min(${Math.round(maxHeight)},ih)'`
+}
+
+/**
+ * Container to use when copying streams instead of re-encoding. The source
+ * container is kept when it can hold arbitrary codecs; anything else falls back to
+ * Matroska, which can mux practically any stream ffmpeg hands it.
+ */
+export function copyContainer(filename: string): { ext: string; mime: string } {
+  const i = filename.lastIndexOf(".")
+  const ext = i > 0 ? filename.slice(i + 1).toLowerCase() : ""
+  const known: Record<string, string> = {
+    mp4: "video/mp4",
+    m4v: "video/mp4",
+    mov: "video/quicktime",
+    webm: "video/webm",
+    mkv: "video/x-matroska",
+    ts: "video/mp2t",
+  }
+  return ext in known ? { ext, mime: known[ext] } : { ext: "mkv", mime: "video/x-matroska" }
+}
+
+export interface TranscodeOptions {
+  format: VideoFormat
+  /** 0 = best quality, 100 = smallest file. Mapped onto the codec's CRF range. */
+  quality: number
+  maxHeight: number | null
+  fps: number | null
+  muted: boolean
+  audioBitrateKbps?: number
+}
+
+export function transcodeArgs(opts: TranscodeOptions): string[] {
+  const args: string[] = []
+  const filters: string[] = []
+  const scale = scaleFilter(opts.maxHeight)
+  if (scale) filters.push(scale)
+  if (opts.fps && opts.fps > 0) filters.push(`fps=${opts.fps}`)
+  if (filters.length > 0) args.push("-vf", filters.join(","))
+
+  const quality = Math.min(100, Math.max(0, opts.quality))
+  if (opts.format === "mp4") {
+    // x264: CRF 18 (visually lossless) … 34 (small)
+    const crf = Math.round(18 + (quality / 100) * 16)
+    args.push("-c:v", "libx264", "-preset", "ultrafast", "-crf", String(crf))
+    args.push("-pix_fmt", "yuv420p", "-movflags", "+faststart")
+  } else {
+    // vp9: CRF 24 … 44. The realtime deadline keeps wasm encoding usable.
+    const crf = Math.round(24 + (quality / 100) * 20)
+    args.push("-c:v", "libvpx-vp9", "-crf", String(crf), "-b:v", "0")
+    args.push("-deadline", "realtime", "-cpu-used", "8", "-row-mt", "1")
+  }
+
+  if (opts.muted) {
+    args.push("-an")
+  } else {
+    const rate = `${Math.round(opts.audioBitrateKbps ?? 128)}k`
+    args.push(...(opts.format === "mp4" ? ["-c:a", "aac"] : ["-c:a", "libopus"]), "-b:a", rate)
+  }
+  return args
+}
+
+export interface GifOptions {
+  fps: number
+  width: number
+  /** Dithering trades file size for smoother gradients. */
+  dither: boolean
+}
+
+export function gifFilter(opts: GifOptions): string {
+  const base = `fps=${opts.fps},scale=${Math.round(opts.width)}:-1:flags=lanczos`
+  const use = opts.dither ? "paletteuse=dither=bayer:bayer_scale=3" : "paletteuse=dither=none"
+  return `${base},split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]${use}`
+}
+
+/**
+ * Seek flags shared by every trim-style operation. Seeking before -i is fast but
+ * lands on a keyframe; `copy` false re-encodes for a frame-accurate cut.
+ */
+export function trimArgs(start: number, end: number, copy: boolean): string[] {
+  const duration = Math.max(0, end - start)
+  const args: string[] = []
+  if (start > 0) args.push("-ss", start.toFixed(3))
+  args.push("-i", "INPUT")
+  if (duration > 0) args.push("-t", duration.toFixed(3))
+  if (copy) args.push("-c", "copy", "-avoid_negative_ts", "make_zero")
+  return args
+}
+
+/* ------------------------------------------------------------------ */
+/* ffmpeg.wasm runtime                                                 */
+/* ------------------------------------------------------------------ */
+
+export interface LoadHooks {
+  /** 0..1 download progress for the engine itself. */
+  onDownload?: (ratio: number) => void
+}
+
+let instance: FFmpeg | null = null
+let loadPromise: Promise<FFmpeg> | null = null
+
+async function loadFFmpeg(hooks: LoadHooks): Promise<FFmpeg> {
+  const [{ FFmpeg }, { toBlobURL }] = await Promise.all([
+    import("@ffmpeg/ffmpeg"),
+    import("@ffmpeg/util"),
+  ])
+  const ffmpeg = new FFmpeg()
+
+  let lastError: unknown = null
+  for (const base of CORE_BASES) {
+    try {
+      const coreURL = await toBlobURL(`${base}/ffmpeg-core.js`, "text/javascript")
+      const wasmURL = await toBlobURL(
+        `${base}/ffmpeg-core.wasm`,
+        "application/wasm",
+        true,
+        (event) => {
+          if (event.total > 0) {
+            hooks.onDownload?.(Math.min(1, Math.max(0, event.received / event.total)))
+          }
+        },
+      )
+      await ffmpeg.load({ coreURL, wasmURL })
+      hooks.onDownload?.(1)
+      return ffmpeg
+    } catch (e) {
+      lastError = e
+    }
+  }
+  throw new Error(
+    lastError instanceof Error && lastError.message
+      ? `Could not load the video engine: ${lastError.message}`
+      : "Could not load the video engine. Check your connection and try again.",
+  )
+}
+
+export async function getFFmpeg(hooks: LoadHooks = {}): Promise<FFmpeg> {
+  if (instance) return instance
+  if (!loadPromise) {
+    loadPromise = loadFFmpeg(hooks)
+      .then((ff) => {
+        instance = ff
+        return ff
+      })
+      .catch((e) => {
+        // Let a later attempt retry the download instead of caching the failure.
+        loadPromise = null
+        throw e
+      })
+  }
+  return await loadPromise
+}
+
+/** True once the engine is in memory — lets pages drop the "first run downloads" note. */
+export function isFFmpegReady(): boolean {
+  return instance !== null
+}
+
+export interface JobHooks extends LoadHooks {
+  /** 0..1 progress of the current ffmpeg run. */
+  onProgress?: (ratio: number) => void
+  onStage?: (stage: string) => void
+}
+
+export interface VideoJob {
+  /**
+   * Runs one ffmpeg invocation against the already-written input.
+   * Use the literal "INPUT" and "OUTPUT" tokens inside `args`.
+   */
+  run(args: string[], outputName: string, mimeType: string): Promise<Blob>
+}
+
+function extensionOf(name: string): string {
+  const i = name.lastIndexOf(".")
+  const ext = i > 0 ? name.slice(i + 1).toLowerCase() : ""
+  return /^[a-z0-9]{1,5}$/.test(ext) ? ext : "bin"
+}
+
+// ffmpeg.wasm has one filesystem and one call stack, so runs are serialized.
+let queue: Promise<unknown> = Promise.resolve()
+
+/**
+ * Writes `file` into the ffmpeg filesystem once, hands a runner to `fn`, and cleans
+ * up afterwards. Concurrent calls queue behind each other.
+ */
+export async function processVideo<T>(
+  file: File,
+  hooks: JobHooks,
+  fn: (job: VideoJob) => Promise<T>,
+): Promise<T> {
+  const task = queue.then(async () => {
+    hooks.onStage?.("Loading engine")
+    const ffmpeg = await getFFmpeg(hooks)
+
+    const inputName = `input-${Date.now()}.${extensionOf(file.name)}`
+    const written: string[] = []
+    const logs: string[] = []
+    const onLog = ({ message }: { message: string }) => {
+      logs.push(message)
+      if (logs.length > 40) logs.shift()
+    }
+    const onProgress = ({ progress }: { progress: number }) => {
+      if (Number.isFinite(progress)) hooks.onProgress?.(Math.min(1, Math.max(0, progress)))
+    }
+    ffmpeg.on("log", onLog)
+    ffmpeg.on("progress", onProgress)
+
+    try {
+      hooks.onStage?.("Reading file")
+      await ffmpeg.writeFile(inputName, new Uint8Array(await file.arrayBuffer()))
+      written.push(inputName)
+
+      const job: VideoJob = {
+        async run(args, outputName, mimeType) {
+          const resolved = args.map((a) =>
+            a === "INPUT" ? inputName : a === "OUTPUT" ? outputName : a,
+          )
+          if (!resolved.includes(outputName)) resolved.push(outputName)
+          logs.length = 0
+          hooks.onProgress?.(0)
+
+          const code = await ffmpeg.exec(resolved)
+          if (code !== 0) throw new Error(ffmpegError(logs))
+          written.push(outputName)
+
+          const data = await ffmpeg.readFile(outputName)
+          if (typeof data === "string") throw new Error("ffmpeg returned unexpected text output.")
+          // Copy out of the wasm heap so the Blob survives the next run.
+          const bytes = new Uint8Array(data.length)
+          bytes.set(data)
+          if (bytes.length === 0) throw new Error(ffmpegError(logs))
+          hooks.onProgress?.(1)
+          return new Blob([bytes], { type: mimeType })
+        },
+      }
+
+      return await fn(job)
+    } finally {
+      ffmpeg.off("log", onLog)
+      ffmpeg.off("progress", onProgress)
+      for (const name of written) {
+        try {
+          await ffmpeg.deleteFile(name)
+        } catch {
+          // The file may never have been created; nothing to clean up.
+        }
+      }
+    }
+  })
+
+  // Keep the chain alive when a task fails, so later jobs still run.
+  queue = task.catch(() => undefined)
+  return await task
+}
+
+/** Picks the most useful line out of the ffmpeg log tail. */
+export function ffmpegError(logs: string[]): string {
+  const detail = [...logs]
+    .reverse()
+    .find((line) =>
+      /error|invalid|unable|not found|no such|failed|unknown encoder|does not contain/i.test(line),
+    )
+    ?.trim()
+  return detail
+    ? `ffmpeg failed: ${detail}`
+    : "ffmpeg could not process this file. It may be corrupted or use an unsupported codec."
+}

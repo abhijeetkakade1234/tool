@@ -22,9 +22,14 @@ import {
   Hash,
   ListOrdered,
   QrCode,
+  Film,
+  FileVideoCamera,
+  Music4,
+  Split,
+  VolumeX,
 } from "lucide-react"
 
-export type ToolCategory = "image" | "pdf" | "utility"
+export type ToolCategory = "image" | "pdf" | "video" | "utility"
 
 export interface ToolDef {
   id: string
@@ -210,6 +215,61 @@ export const tools: ToolDef[] = [
     icon: FileOutput,
     available: true,
   },
+  // Video tools
+  {
+    id: "video-trim",
+    path: "/video/trim",
+    name: "Trim Video",
+    description: "Keep one section of a video — fast and lossless, or frame-accurate.",
+    category: "video",
+    icon: Scissors,
+    available: true,
+  },
+  {
+    id: "video-split",
+    path: "/video/split",
+    name: "Split Video",
+    description: "Cut a video into equal parts, fixed chunks or your own timestamps.",
+    category: "video",
+    icon: Split,
+    available: true,
+  },
+  {
+    id: "video-mute",
+    path: "/video/mute",
+    name: "Mute Video",
+    description: "Remove the audio track without touching the picture.",
+    category: "video",
+    icon: VolumeX,
+    available: true,
+  },
+  {
+    id: "video-to-audio",
+    path: "/video/to-audio",
+    name: "Video → MP3 / Audio",
+    description: "Extract the soundtrack as MP3, M4A, Opus or WAV.",
+    category: "video",
+    icon: Music4,
+    available: true,
+  },
+  {
+    id: "video-convert",
+    path: "/video/convert",
+    name: "Convert / Compress Video",
+    description: "Re-encode to MP4 or WebM, drop resolution and shrink the file.",
+    category: "video",
+    icon: FileVideoCamera,
+    available: true,
+  },
+  {
+    id: "video-gif",
+    path: "/video/gif",
+    name: "Video → GIF",
+    description: "Turn a few seconds of video into an animated GIF.",
+    category: "video",
+    icon: Film,
+    available: true,
+  },
   // Utilities
   {
     id: "svg-to-png",
@@ -251,4 +311,5 @@ export const tools: ToolDef[] = [
 
 export const imageTools = tools.filter((t) => t.category === "image")
 export const pdfTools = tools.filter((t) => t.category === "pdf")
+export const videoTools = tools.filter((t) => t.category === "video")
 export const utilityTools = tools.filter((t) => t.category === "utility")
